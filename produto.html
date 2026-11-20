@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de Código de Barras | DevStore API</title>
+    <meta id="meta-desc" name="description" content="Consulta de produto por código de barras EAN/GTIN.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script id="schema-product" type="application/ld+json">{}</script>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen font-sans">
+    <header class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <a href="index.html" class="inline-flex items-center space-x-2 text-sm font-semibold text-blue-600 hover:underline">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Voltar ao Gerenciador</span>
+        </a>
+        <span class="text-xs font-mono text-gray-500" id="header-ean">EAN: -</span>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-6 sm:p-10">
+        <div id="not-found" class="hidden bg-white border border-gray-200 rounded-2xl p-8 text-center shadow-sm">
+            <h1 class="text-xl font-bold text-gray-800 mb-2">Código de barras não encontrado</h1>
+            <p class="text-sm text-gray-500 mb-6" id="not-found-ean">Nenhum produto cadastrado com este código.</p>
+            <a href="index.html" class="inline-block bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-blue-700">Cadastrar Produto</a>
+        </div>
+
+        <article id="product-card" class="hidden bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div class="border-b border-gray-100 pb-5 space-y-2">
+                <div class="inline-flex items-center space-x-2 bg-blue-50 text-blue-700 px-3 py-1 rounded-full text-xs font-mono font-semibold">
+                    <i class="fa-solid fa-barcode"></i>
+                    <span id="badge-ean">0000000000000</span>
+                </div>
+                <h1 id="prod-title" class="text-2xl sm:text-3xl font-bold tracking-tight">Produto</h1>
+                <p class="text-sm text-gray-500">
+                    Categoria: <strong id="prod-category" class="text-gray-800">-</strong> •
+                    SKU: <span id="prod-sku" class="font-mono text-gray-700">-</span>
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm">
+                <div>
+                    <span class="text-xs uppercase text-gray-400 font-semibold block">Código de Barras</span>
+                    <span id="detail-ean" class="font-mono font-bold text-base text-gray-900">-</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-gray-400 font-semibold block">Marca</span>
+                    <span id="detail-brand" class="font-semibold text-base text-gray-900">-</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-gray-400 font-semibold block">Preço de Referência</span>
+                    <span id="detail-price" class="font-bold text-base text-green-700">-</span>
+                </div>
+                <div>
+                    <span class="text-xs uppercase text-gray-400 font-semibold block">URL da Página</span>
+                    <span id="detail-url" class="font-mono text-xs text-blue-600 break-all">-</span>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500">Descrição</h2>
+                <p id="prod-description" class="text-gray-700 text-sm leading-relaxed">-</p>
+            </div>
+
+            <div class="space-y-2">
+                <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500">Especificações Técnicas</h2>
+                <div class="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs font-mono overflow-x-auto">
+                    <pre id="prod-specs">{}</pre>
+                </div>
+            </div>
+        </article>
+    </main>
+
+    <script>
+        async function loadProductByEan() {
+            const params = new URLSearchParams(window.location.search);
+            const ean = (params.get('ean') || '').trim();
+            document.getElementById('header-ean').innerText = ean ? `EAN: ${ean}` : 'EAN: não informado';
+            document.getElementById('detail-url').innerText = window.location.href;
+
+            let list = [];
+            try {
+                const res = await fetch('produtos.json', { cache: 'no-store' });
+                if (res.ok) list = await res.json();
+            } catch (_) {}
+
+            const localList = JSON.parse(localStorage.getItem('devstore_products') || '[]');
+            const merged = [...list];
+            localList.forEach(item => {
+                if (!merged.some(m => String(m.barcode) === String(item.barcode))) {
+                    merged.push(item);
+                }
+            });
+
+            const product = merged.find(p => String(p.barcode).trim() === ean);
+            if (!ean || !product) {
+                document.getElementById('not-found').classList.remove('hidden');
+                document.getElementById('not-found-ean').innerText = ean
+                    ? `Nenhum produto encontrado para o código ${ean}.`
+                    : 'Informe ?ean=CODIGO na URL para consultar um produto.';
+                return;
+            }
+
+            let parsedSpecs = {};
+            try { parsedSpecs = typeof product.specs === 'string' ? JSON.parse(product.specs) : (product.specs || {}); } catch (_) {}
+            const brand = parsedSpecs.marca || parsedSpecs.brand || 'Não informada';
+
+            document.title = `${product.barcode} - ${product.name} (${brand}) | ${product.category || 'Catálogo'}`;
+            document.getElementById('meta-desc').setAttribute(
+                'content',
+                `Código de barras ${product.barcode}: ${product.name}. Marca: ${brand}. Categoria: ${product.category || '-'}. ${product.description || ''}`
+            );
+
+            document.getElementById('badge-ean').innerText = product.barcode;
+            document.getElementById('prod-title').innerText = `${product.name} — Cód. ${product.barcode}`;
+            document.getElementById('prod-category').innerText = product.category || 'Geral';
+            document.getElementById('prod-sku').innerText = product.sku || '-';
+            document.getElementById('detail-ean').innerText = product.barcode;
+            document.getElementById('detail-brand').innerText = brand;
+            document.getElementById('detail-price').innerText = `R$ ${Number(product.price || 0).toFixed(2)}`;
+            document.getElementById('prod-description').innerText = product.description || 'Sem descrição cadastrada.';
+            document.getElementById('prod-specs').innerText = JSON.stringify(parsedSpecs, null, 2);
+
+            document.getElementById('schema-product').textContent = JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Product",
+                "name": product.name,
+                "gtin13": product.barcode,
+                "sku": product.sku,
+                "category": product.category,
+                "description": product.description,
+                "brand": { "@type": "Brand", "name": brand },
+                "offers": {
+                    "@type": "Offer",
+                    "priceCurrency": "BRL",
+                    "price": Number(product.price || 0).toFixed(2)
+                }
+            });
+
+            document.getElementById('product-card').classList.remove('hidden');
+        }
+
+        loadProductByEan();
+    </script>
+</body>
+</html>

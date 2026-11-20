@@ -454,10 +454,15 @@
 
             list.forEach((p) => {
                 const originalIndex = products.indexOf(p);
+                const barcodeValue = p.barcode || '';
+                const barcodeCell = barcodeValue
+                    ? `<a href="produto.html?ean=${encodeURIComponent(barcodeValue)}" target="_blank" class="bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/70 px-2.5 py-1 rounded border border-blue-200 dark:border-blue-800 font-semibold inline-flex items-center space-x-1 transition-colors" title="Abrir página do código de barras"><i class="fa-solid fa-up-right-from-square text-[10px]"></i><span>${barcodeValue}</span></a>`
+                    : `<span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border border-gray-200 dark:border-gray-600">N/D</span>`;
+
                 tbody.innerHTML += `
                     <tr class="hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
                         <td class="p-4 font-medium">${p.name}<span class="block text-xs text-gray-400 font-normal truncate max-w-xs">${p.description || ''}</span></td>
-                        <td class="p-4 font-mono text-xs"><span class="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded border border-gray-200 dark:border-gray-600">${p.barcode || 'N/D'}</span></td>
+                        <td class="p-4 font-mono text-xs">${barcodeCell}</td>
                         <td class="p-4"><span class="font-mono text-xs text-brand-600 dark:text-brand-400">${p.sku}</span><span class="block text-xs text-gray-400">${p.category}</span></td>
                         <td class="p-4 font-semibold">R$ ${Number(p.price).toFixed(2)}</td>
                         <td class="p-4 text-right space-x-2">
